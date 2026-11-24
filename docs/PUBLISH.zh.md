@@ -47,10 +47,17 @@ npm 包（或固定 commit 的 Git 包）  +  一份索引 JSON（你自己托�
 索引是单个 JSON 文件，格式由 `@deepseek-ai/dsh-plugin-market-index` 校验。仓库里的 `scripts/make-index.mjs` 会按 `package.json` 生成并**用 DSH 自带的校验器验证**：
 
 ```powershell
-node scripts/make-index.mjs --published-at <Unix 秒> `
+# 发布后用 --from-npm 自动从 registry 读取该版本的发布时间：
+node scripts/make-index.mjs --from-npm `
+  --index-url https://raw.githubusercontent.com/TMAX-2026/dsh-sidebar-menu-order/main/market/index.json
+
+# 也可以用 Unix 秒或 ISO 时间：
+node scripts/make-index.mjs --published-at 2026-11-24T10:00:00Z `
   --index-url https://raw.githubusercontent.com/TMAX-2026/dsh-sidebar-menu-order/main/market/index.json
 # → validated: 1 plugin(s), 1 version(s)
 ```
+
+> 仓库里提交的 `market/index.json` 里 `publishTimestamp` 是**占位值**；npm 发布后必须用 `--from-npm` 重生成一次再提交。
 
 生成的形状：
 

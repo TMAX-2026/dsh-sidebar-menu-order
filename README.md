@@ -14,7 +14,11 @@ dsh plugin --profile <profile> add dsh-sidebar-menu-order
 
 或在 **插件** → **添加插件** 中填入 `dsh-sidebar-menu-order`。
 
-从插件市场安装：先在 **插件 → 实验性插件** 启用 **自定义插件索引**，再到 **发现 → 添加索引源** 粘贴索引 URL。
+从插件市场安装：先在 **插件 → 实验性插件** 启用 **自定义插件索引**，再到 **发现 → 添加索引源** 粘贴：
+
+```
+https://raw.githubusercontent.com/TMAX-2026/dsh-sidebar-menu-order/main/market/index.json
+```
 
 要求 DSH `>=0.2.2-rc.5 <0.3.0`（`package.json` 的 `engines.dsh`）。
 

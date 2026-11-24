@@ -24,6 +24,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createRequire } from 'node:module'
+import { execFileSync } from 'node:child_process'
 
 const root = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]$/u, '')
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
@@ -38,9 +39,48 @@ function arg(name, fallback) {
 const dryRun = process.argv.includes('--dry-run')
 const outPath = resolve(root, arg('out', 'market/index.json'))
 const indexUrl = arg('index-url', 'https://example.com/plugin-index.json')
-const publishedAt = Number(arg('published-at', String(Math.floor(Date.now() / 1000))))
 const iconUrl = arg('icon-url', undefined)
 
+/** Resolve the publish timestamp: seconds, an ISO date, or the registry (`--from-npm`). */
+function resolvePublishedAt() {
+  const raw = arg('published-at', undefined)
+  if (raw !== undefined) {
+    if (/[T:-]/u.test(raw)) {
+      const parsed = Date.parse(raw)
+      if (!Number.isFinite(parsed)) {
+        console.error('--published-at must be Unix seconds or an ISO date')
+        process.exit(1)
+      }
+      return Math.floor(parsed / 1000)
+    }
+    return Number(raw)
+  }
+  if (process.argv.includes('--from-npm')) {
+    try {
+      const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+      // A .cmd shim cannot be spawned without a shell on Windows.
+      const shell = process.platform === 'win32'
+      const rawTimes = execFileSync(npm, ['view', `${pkg.name}@${pkg.version}`, 'time', '--json'], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell,
+      })
+      const iso = JSON.parse(rawTimes)[pkg.version]
+      if (typeof iso !== 'string') throw new Error('version not found in the registry time map')
+      return Math.floor(Date.parse(iso) / 1000)
+    } catch (error) {
+      const lines = (error.stderr?.toString() ?? '').split(/\r?\n/u)
+        .map(line => line.trim())
+        .filter(line => line.length > 0 && !/complete log/iu.test(line))
+      const detail = lines.length > 0 ? lines[lines.length - 1] : error.message
+      console.error(`--from-npm could not read the publish time for ${pkg.name}@${pkg.version}: ${detail}`)
+      process.exit(1)
+    }
+  }
+  return Math.floor(Date.now() / 1000)
+}
+
+const publishedAt = resolvePublishedAt()
 if (!Number.isInteger(publishedAt) || publishedAt < 0 || publishedAt >= 1e11) {
   console.error('--published-at must be an integer number of Unix seconds')
   process.exit(1)
