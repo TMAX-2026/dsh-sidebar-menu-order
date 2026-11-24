@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Sidebar menu order",
+    "description": "Rearranges the left menu (Plugins, Automations, chat and context panels) by dragging, and keeps the order in the active profile. Open More at the bottom of the left menu, choose Reorder menu, then drag a row or use its arrow buttons; the order persists across restarts because it is stored in the profile's settings document."
+  }
+}
