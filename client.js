@@ -6,7 +6,7 @@
  * those registrations by their `order` option. The slot core lets a later
  * registration shadow an earlier one with the same id at a DIFFERENT priority
  * (lowest priority number renders), so this plugin re-registers every panel it
- * should reorder at priority -1, copying the original entry's component,
+ * should reorder at a very low, instance-unique priority, copying the original component,
  * label, locale, and inject face and substituting only `order`. The original
  * registrations stay untouched: disabling this plugin restores the default
  * order, and a panel that disappears disposes its shadow on the next sync.
@@ -34,8 +34,13 @@ window.__ModuleLoader__.load({
     const SLOT = 'sidebar.panellist';
     const ACTIONS_SLOT = 'sidebar.panellist.actions';
     const OVERLAY_SLOT = 'shell.overlay';
-    /** Priority that shadows an existing list entry; the core renders the lowest number. */
-    const SHADOW_PRIORITY = -1;
+    /**
+     * Priority that shadows an existing list entry; the core renders the lowest
+     * number. It is unique per module instance and decreases with time, so a
+     * stale shadow left by an earlier instance (or another plugin shadowing the
+     * same id at -1/-2) can never outrank the current one.
+     */
+    const SHADOW_PRIORITY = -1_000_000_000_000 - Date.now() * 100 - Math.floor(Math.random() * 100);
     /** Spacing between our generated order values. */
     const ORDER_STEP = 10;
     const STORAGE_KEY = 'dsh.sidebar-menu-order.v1';
@@ -284,7 +289,7 @@ window.__ModuleLoader__.load({
 
       function registerShadows(ordered, byId) {
         if (!allowRebuild()) return;
-        debugLog('rebuild', ordered.length, 'entries');
+        debugLog('rebuild', ordered.length, 'entries, priority', SHADOW_PRIORITY);
         disposeShadows();
         const disposers = [];
         for (let index = 0; index < ordered.length; index += 1) {
@@ -310,6 +315,15 @@ window.__ModuleLoader__.load({
         shadowDisposers = disposers;
         appliedIds = ordered.slice();
         appliedEntries = ordered.map(id => byId.get(id));
+        try {
+          const winners = new Map(ctx.slots.entriesOfSlot(SLOT).map(entry => [entry.options.id, entry]));
+          const lost = ordered.filter(id => winners.get(id)?.options.priority !== SHADOW_PRIORITY);
+          if (lost.length > 0) {
+            console.warn('[sidebar-menu-order] these panels kept another registration:', lost.join(', '));
+          }
+        } catch (error) {
+          console.warn('[sidebar-menu-order] verifying the shadow registrations failed', error);
+        }
       }
 
       let syncing = false;
