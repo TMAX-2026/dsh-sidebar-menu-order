@@ -45,7 +45,8 @@ npm 包（或固定 commit 的 Git 包）  +  一份索引 JSON（你自己托�
 
 ## 2. 准备索引 JSON（format 1）
 
-索引是单个 JSON 文件，格式由 `@deepseek-ai/dsh-plugin-market-index` 校验。仓库里的 `scripts/make-index.mjs` 会按 `package.json` 生成并**用 DSH 自带的校验器验证**：
+索引是单个 JSON 文件，格式由 `@deepseek-ai/dsh-plugin-market-index` 校验。分类/标签写在 `market/taxonomy.json`：索引级的 `categories`/`labels` 声明有哪些筛选维度，`entries.<包名>` 指定每个条目归属哪个分类、带哪些标签；声明后「发现」页会出现分类按钮和「标签」多选菜单。
+仓库里的 `scripts/make-index.mjs` 会按 `package.json` 生成并**用 DSH 自带的校验器验证**：
 
 ```powershell
 # 发布后用 --from-npm 自动从 registry 读取该版本的发布时间：
