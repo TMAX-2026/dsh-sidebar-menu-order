@@ -1,6 +1,6 @@
 {
   "name": "dsh-sidebar-menu-order",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Reorder the left navigation menu of the DeepSeek Harness web GUI by dragging, and keep the order in the active profile.",
   "author": "TMAX-2026",
   "repository": {

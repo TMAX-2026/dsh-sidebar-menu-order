@@ -40,6 +40,17 @@ window.__ModuleLoader__.load({
     const ORDER_STEP = 10;
     const STORAGE_KEY = 'dsh.sidebar-menu-order.v1';
     const TITLE_ID = 'dsmo-dialog-title';
+    /** Opt-in console tracing: localStorage['dsh.sidebar-menu-order.debug'] = '1'. */
+    const DEBUG = (() => {
+      try {
+        return window.localStorage.getItem('dsh.sidebar-menu-order.debug') === '1';
+      } catch (error) {
+        return false;
+      }
+    })();
+    const debugLog = (...args) => {
+      if (DEBUG) console.info('[sidebar-menu-order]', ...args);
+    };
     const HINT_ID = 'dsmo-dialog-hint';
 
     const en = {
@@ -248,7 +259,32 @@ window.__ModuleLoader__.load({
         }
       }
 
+      /**
+       * Rebuild budget. Re-registering sidebar entries re-renders the shell; an
+       * unforeseen feedback loop must degrade to "order not applied" instead of
+       * locking the renderer.
+       */
+      let rebuildWindowStart = 0;
+      let rebuildsInWindow = 0;
+      let rebuildPaused = false;
+      function allowRebuild() {
+        const now = Date.now();
+        if (now - rebuildWindowStart > 3000) {
+          rebuildWindowStart = now;
+          rebuildsInWindow = 0;
+        }
+        rebuildsInWindow += 1;
+        if (rebuildsInWindow <= 20) return true;
+        if (!rebuildPaused) {
+          rebuildPaused = true;
+          console.warn('[sidebar-menu-order] paused panel re-registration after repeated rebuilds; keeping the current order');
+        }
+        return false;
+      }
+
       function registerShadows(ordered, byId) {
+        if (!allowRebuild()) return;
+        debugLog('rebuild', ordered.length, 'entries');
         disposeShadows();
         const disposers = [];
         for (let index = 0; index < ordered.length; index += 1) {
@@ -276,20 +312,27 @@ window.__ModuleLoader__.load({
         appliedEntries = ordered.map(id => byId.get(id));
       }
 
+      let syncing = false;
       function sync() {
-        if (disposing) return;
-        const { byId, ordered } = collect();
-        const panels = ordered.map(id => ({ id, label: labelOf(byId.get(id), id) }));
-        const wantShadow = savedOrder.length > 0 && ordered.length > 0;
-        if (!wantShadow) {
-          if (shadowDisposers.length > 0) disposeShadows();
-        } else {
-          const unchanged = sameIds(ordered, appliedIds)
-            && ordered.every((id, index) => appliedEntries[index] === byId.get(id))
-            && shadowDisposers.length === ordered.length;
-          if (!unchanged) registerShadows(ordered, byId);
+        if (disposing || syncing) return;
+        syncing = true;
+        try {
+          const { byId, ordered } = collect();
+          const panels = ordered.map(id => ({ id, label: labelOf(byId.get(id), id) }));
+          const wantShadow = savedOrder.length > 0 && ordered.length > 0;
+          if (!wantShadow) {
+            if (shadowDisposers.length > 0) disposeShadows();
+          } else {
+            const unchanged = sameIds(ordered, appliedIds)
+              && ordered.every((id, index) => appliedEntries[index] === byId.get(id))
+              && shadowDisposers.length === ordered.length;
+            if (!unchanged) registerShadows(ordered, byId);
+          }
+          debugLog('sync', ordered.length, 'panels, shadow=', wantShadow);
+          if (!samePanels(snapshot.panels, panels)) publish({ panels });
+        } finally {
+          syncing = false;
         }
-        if (!samePanels(snapshot.panels, panels)) publish({ panels });
       }
 
       function requestSync() {
@@ -301,21 +344,31 @@ window.__ModuleLoader__.load({
         });
       }
 
+      /**
+       * Apply a new order. Only the browser cache is written here: the profile
+       * write happens once when the dialog closes, so one editing session costs
+       * one settings write (and one Host config reload) instead of one per drop.
+       * The slot rebuild is deferred out of the pointer/drag call stack as well.
+       */
       function setOrder(ids) {
         savedOrder = ids.slice();
         dirty = true;
-        sync();
-        persistSoon();
+        writeLocalOrder(savedOrder);
+        requestSync();
       }
 
       function reset() {
         savedOrder = [];
         dirty = true;
+        writeLocalOrder(savedOrder);
         sync();
-        persistNow();
+        void persistNow();
       }
 
       function open() {
+        rebuildWindowStart = 0;
+        rebuildsInWindow = 0;
+        rebuildPaused = false;
         sync();
         publish({ open: true });
       }
@@ -358,19 +411,7 @@ window.__ModuleLoader__.load({
         });
       }
 
-      function persistSoon() {
-        writeLocalOrder(savedOrder);
-        if (!hasWritableForm()) {
-          activeForm = null;
-          publish({ status: 'localOnly', detail: '' });
-          return;
-        }
-        if (saveTimer !== undefined) clearTimeout(saveTimer);
-        saveTimer = setTimeout(() => {
-          saveTimer = undefined;
-          void flush();
-        }, 250);
-      }
+
 
       function persistNow() {
         writeLocalOrder(savedOrder);
@@ -380,6 +421,17 @@ window.__ModuleLoader__.load({
           return Promise.resolve();
         }
         return flush();
+      }
+
+      /** Reject a Host call that never settles, so a stuck write cannot pin the dialog. */
+      function withTimeout(promise, ms) {
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => { reject(new Error('the Host did not answer within ' + ms + 'ms')) }, ms);
+          promise.then(
+            (value) => { clearTimeout(timer); resolve(value) },
+            (error) => { clearTimeout(timer); reject(error) },
+          );
+        });
       }
 
       /** Write the current order through every served namespace, stopping at the first acceptance. */
@@ -393,14 +445,16 @@ window.__ModuleLoader__.load({
           publish({ status: 'localOnly', detail: '' });
           return;
         }
+        debugLog('write start', savedOrder.length, 'entries');
         publish({ status: 'saving', detail: '' });
         let failure;
         for (const candidate of targets) {
           try {
-            const accepted = await candidate.form.set('order', savedOrder.slice());
+            const accepted = await withTimeout(candidate.form.set('order', savedOrder.slice()), 10000);
             if (accepted) {
               activeForm = candidate;
               dirty = false;
+              debugLog('write done');
               publish({ status: 'saved', detail: '', storage: 'profile' });
               return;
             }
