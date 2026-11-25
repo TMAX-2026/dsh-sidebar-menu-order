@@ -6,15 +6,19 @@ A DSH web-GUI plugin that reorders the left navigation menu by dragging, and kee
 
 ## 安装 · Install
 
-发布到 npm 后：
+已发布到 npm（[dsh-sidebar-menu-order](https://www.npmjs.com/package/dsh-sidebar-menu-order)），任选一种：
 
 ```sh
-dsh plugin --profile <profile> add dsh-sidebar-menu-order
+# Web profile
+dsh plugin --profile web add dsh-sidebar-menu-order
+
+# Desktop profile
+dsh plugin --profile desktop add dsh-sidebar-menu-order
 ```
 
-或在 **插件** → **添加插件** 中填入 `dsh-sidebar-menu-order`。
+或在 **插件** → **添加插件** 中填入 `dsh-sidebar-menu-order`（可带版本，如 `dsh-sidebar-menu-order@1.0.2`）。
 
-从插件市场安装：先在 **插件 → 实验性插件** 启用 **自定义插件索引**，再到 **发现 → 添加索引源** 粘贴：
+从插件索引安装：先在 **插件 → 实验性插件** 启用 **自定义插件索引**，再到 **发现 → 添加索引源** 粘贴：
 
 ```
 https://raw.githubusercontent.com/TMAX-2026/dsh-sidebar-menu-order/main/market/index.json
