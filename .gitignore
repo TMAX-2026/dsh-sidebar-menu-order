@@ -3,3 +3,6 @@ node_modules/
 .DS_Store
 Thumbs.db
 *.log
+
+# Never commit npm credentials (a project-local .npmrc may hold a token).
+.npmrc

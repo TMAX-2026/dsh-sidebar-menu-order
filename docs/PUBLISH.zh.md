@@ -15,6 +15,7 @@ npm 包（或固定 commit 的 Git 包）  +  一份索引 JSON（你自己托�
 - 包名 **`dsh-sidebar-menu-order`**（当时 npm registry 查过是 404，未占用；发布前请再确认一次），`private` 已删除。
 - `package.json`：`license: MIT`、`keywords`、`engines.dsh: ">=0.2.2-rc.5 <0.3.0"`、`peerDependencies.@deepseek-ai/schemastery`（optional）。
 - `index.js`：先普通 `import '@deepseek-ai/schemastery'`，失败再回退 `createRequire(DSH_INSTALL_DIR)`，两种安装方式都能用。
+- **客户端 bundle 的注册 id 必须等于包名**：`client.js` 里 `window.__ModuleLoader__.load({ id })` 必须写 `dsh-sidebar-menu-order`。改名后忘了改这里，结果是"安装成功、Host 也 active，但界面里什么都不出现"（1.0.0 就是这么坏的，已在 1.0.1 修复）。
 - **`cordis.patch.yml` 的 bundle 行必须写发布后的包名**：`name: dsh-sidebar-menu-order`。改名后忘了改这里，安装能"成功"但 Host 行解析不到（本机曾因残留的旧 junction 而看似正常，别踩）。
 - `LICENSE` 已加（MIT；版权行可自行替换）。
 - `npm pack` 产物只有 9 个文件：`package.json`、`LICENSE`、`README.md`、`index.js`、`client.js`、`cordis.patch.yml`、`icon.svg`、`locale/en.json`、`locale/zh.json`（`docs/`、`scripts/`、`market/` 不进包）。

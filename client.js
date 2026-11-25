@@ -17,7 +17,7 @@
  * local cache keeps the order usable when that service is unavailable.
  */
 window.__ModuleLoader__.load({
-  id: '@local/dsh-sidebar-menu-order',
+  id: 'dsh-sidebar-menu-order',
   factory(require) {
     const React = require('react');
     const h = React.createElement;

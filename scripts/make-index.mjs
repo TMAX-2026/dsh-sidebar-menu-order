@@ -24,7 +24,6 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createRequire } from 'node:module'
-import { execFileSync } from 'node:child_process'
 
 const root = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]$/u, '')
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
@@ -42,7 +41,7 @@ const indexUrl = arg('index-url', 'https://example.com/plugin-index.json')
 const iconUrl = arg('icon-url', undefined)
 
 /** Resolve the publish timestamp: seconds, an ISO date, or the registry (`--from-npm`). */
-function resolvePublishedAt() {
+async function resolvePublishedAt() {
   const raw = arg('published-at', undefined)
   if (raw !== undefined) {
     if (/[T:-]/u.test(raw)) {
@@ -56,31 +55,25 @@ function resolvePublishedAt() {
     return Number(raw)
   }
   if (process.argv.includes('--from-npm')) {
+    // Read the packument straight from the registry: no shell, no npm cache.
     try {
-      const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-      // A .cmd shim cannot be spawned without a shell on Windows.
-      const shell = process.platform === 'win32'
-      const rawTimes = execFileSync(npm, ['view', `${pkg.name}@${pkg.version}`, 'time', '--json'], {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-        shell,
-      })
-      const iso = JSON.parse(rawTimes)[pkg.version]
-      if (typeof iso !== 'string') throw new Error('version not found in the registry time map')
+      const registry = (process.env.npm_config_registry ?? 'https://registry.npmjs.org/').replace(/\/?$/u, '/')
+      const documentUrl = new URL(encodeURIComponent(pkg.name), registry)
+      const response = await fetch(documentUrl, { headers: { accept: 'application/json' } })
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText} for ${documentUrl.href}`)
+      const document = await response.json()
+      const iso = document?.time?.[pkg.version]
+      if (typeof iso !== 'string') throw new Error(`version ${pkg.version} is not published in ${registry}`)
       return Math.floor(Date.parse(iso) / 1000)
     } catch (error) {
-      const lines = (error.stderr?.toString() ?? '').split(/\r?\n/u)
-        .map(line => line.trim())
-        .filter(line => line.length > 0 && !/complete log/iu.test(line))
-      const detail = lines.length > 0 ? lines[lines.length - 1] : error.message
-      console.error(`--from-npm could not read the publish time for ${pkg.name}@${pkg.version}: ${detail}`)
+      console.error(`--from-npm could not read the publish time for ${pkg.name}@${pkg.version}: ${error.message}`)
       process.exit(1)
     }
   }
   return Math.floor(Date.now() / 1000)
 }
 
-const publishedAt = resolvePublishedAt()
+const publishedAt = await resolvePublishedAt()
 if (!Number.isInteger(publishedAt) || publishedAt < 0 || publishedAt >= 1e11) {
   console.error('--published-at must be an integer number of Unix seconds')
   process.exit(1)
