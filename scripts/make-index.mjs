@@ -106,6 +106,27 @@ const localized = (value) => (value.en === value.zh ? { en: value.en } : { en: v
 const repository = typeof pkg.repository === 'string' ? pkg.repository : pkg.repository?.url
 const homepage = typeof pkg.homepage === 'string' ? pkg.homepage : undefined
 
+// Optional taxonomy: index-level categories/labels and per-plugin assignments.
+// Kept in a data file so this generator stays repository-agnostic.
+const taxonomyPath = join(root, 'market', 'taxonomy.json')
+let taxonomy = {}
+if (existsSync(taxonomyPath)) {
+  try {
+    taxonomy = JSON.parse(readFileSync(taxonomyPath, 'utf8'))
+  } catch (error) {
+    console.warn(`warning: ${taxonomyPath} is not valid JSON (${error.message})`)
+  }
+}
+const entryMeta = taxonomy.entries?.[pkg.name] ?? {}
+const taxonomyMetadata = {
+  categories: taxonomy.categories ?? {},
+  labels: taxonomy.labels ?? {},
+  sortKeys: taxonomy.sortKeys ?? {},
+}
+const hasTaxonomy = Object.keys(taxonomyMetadata.categories).length > 0
+  || Object.keys(taxonomyMetadata.labels).length > 0
+  || Object.keys(taxonomyMetadata.sortKeys).length > 0
+
 let icon = iconUrl
 if (icon === undefined) {
   const svgPath = join(root, 'icon.svg')
@@ -125,7 +146,10 @@ const entry = {
   ...(homepage === undefined ? {} : { homepage }),
   ...(repository === undefined ? {} : { repository: { url: repository.replace(/^git\+/u, '').replace(/\.git$/u, '') } }),
   metadata: {
+    ...(typeof entryMeta.category === 'string' ? { category: entryMeta.category } : {}),
     keywords: Array.isArray(pkg.keywords) ? pkg.keywords : [],
+    ...(Array.isArray(entryMeta.labels) && entryMeta.labels.length > 0 ? { labels: entryMeta.labels } : {}),
+    ...(entryMeta.sortKeys !== null && typeof entryMeta.sortKeys === 'object' ? { sortKeys: entryMeta.sortKeys } : {}),
   },
   versions: [{
     version: pkg.version,
@@ -142,14 +166,14 @@ const index = {
   ...(arg('index-description', undefined) === undefined
     ? {}
     : { description: JSON.parse(arg('index-description')) }),
-  metadata: {},
+  metadata: hasTaxonomy ? taxonomyMetadata : {},
   plugins: [entry],
 }
 if (existsSync(outPath) && !dryRun) {
   try {
     const previous = JSON.parse(readFileSync(outPath, 'utf8'))
     if (previous.format === 1 && Array.isArray(previous.plugins)) {
-      index.metadata = previous.metadata ?? {}
+      if (!hasTaxonomy) index.metadata = previous.metadata ?? {}
       index.plugins = previous.plugins.filter(plugin => plugin?.name !== entry.name).concat(entry)
       const existing = previous.plugins.find(plugin => plugin?.name === entry.name)
       if (Array.isArray(existing?.versions)) {

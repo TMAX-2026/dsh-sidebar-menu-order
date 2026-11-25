@@ -4,7 +4,37 @@
     "en": "Plugins",
     "zh": "插件"
   },
-  "metadata": {},
+  "metadata": {
+    "categories": {
+      "interface": {
+        "title": {
+          "en": "Interface",
+          "zh": "界面"
+        }
+      }
+    },
+    "labels": {
+      "sidebar": {
+        "title": {
+          "en": "Sidebar",
+          "zh": "侧栏"
+        }
+      },
+      "navigation": {
+        "title": {
+          "en": "Navigation",
+          "zh": "导航"
+        }
+      },
+      "drag-drop": {
+        "title": {
+          "en": "Drag and drop",
+          "zh": "拖拽"
+        }
+      }
+    },
+    "sortKeys": {}
+  },
   "plugins": [
     {
       "name": "dsh-sidebar-menu-order",
@@ -23,6 +53,7 @@
         "url": "https://github.com/TMAX-2026/dsh-sidebar-menu-order"
       },
       "metadata": {
+        "category": "interface",
         "keywords": [
           "dsh",
           "dsh-plugin",
@@ -31,6 +62,11 @@
           "menu",
           "reorder",
           "drag"
+        ],
+        "labels": [
+          "sidebar",
+          "navigation",
+          "drag-drop"
         ]
       },
       "versions": [

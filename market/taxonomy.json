@@ -1,0 +1,24 @@
+{
+  "categories": {
+    "interface": {
+      "title": { "en": "Interface", "zh": "界面" }
+    }
+  },
+  "labels": {
+    "sidebar": {
+      "title": { "en": "Sidebar", "zh": "侧栏" }
+    },
+    "navigation": {
+      "title": { "en": "Navigation", "zh": "导航" }
+    },
+    "drag-drop": {
+      "title": { "en": "Drag and drop", "zh": "拖拽" }
+    }
+  },
+  "entries": {
+    "dsh-sidebar-menu-order": {
+      "category": "interface",
+      "labels": ["sidebar", "navigation", "drag-drop"]
+    }
+  }
+}
